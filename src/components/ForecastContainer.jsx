@@ -1,7 +1,9 @@
 import React from 'react';
-import { WEATHER_API, WEATHER_URL } from './constants';
 import { DayCard } from './DayCard';
 import { DegreeToggle } from './DegreeToggle';
+import { WeatherService } from '../services';
+
+const weather = new WeatherService();
 
 export class ForecastContainer extends React.Component {
   state = {
@@ -9,37 +11,32 @@ export class ForecastContainer extends React.Component {
     loading: false, //!!! ALWAYS NEED A VISUAL TO DISPLAY TO USER EITHER LOADING OR ERROR !!!! //
     error: false,
     degreeType: 'fahrenheit',
+    speedType: 'mph',
   };
 
   // * after component has rendered to DOM, this will run //
-  async componentDidMount() {
+  componentDidMount() {
     this.setState({ loading: true });
-    try {
-      const response = await fetch(`${WEATHER_URL}${WEATHER_API}`);
-      if (response.ok) {
-        const json = await response.json();
-        const data = json.list
-          .filter((day) => day.dt_txt.includes('00:00:00'))
-          .map((item) => ({
-            temp: item.main.temp,
-            dt: item.dt,
-            date: item.dt_txt,
-            imgId: item.weather[0].id,
-            desc: item.weather[0].description,
-          }));
-        this.setState({
-          data,
-          loading: false,
-        });
-      } else {
+    weather.fetchFiveDayForecast().then(
+      (res) => {
+        if (res && res.response.ok) {
+          this.setState({
+            data: res.data,
+            loading: false,
+          });
+        } else {
+          this.setState({ loading: false });
+        }
+      },
+      (error) => {
+        console.log(error);
+
         this.setState({
           loading: false,
           error: true,
         });
       }
-    } catch (err) {
-      console.error('Page Error');
-    }
+    );
   }
 
   updateForecastDegree = ({ target: { value } }) => {
@@ -48,8 +45,14 @@ export class ForecastContainer extends React.Component {
     });
   };
 
+  speedOnChange = ({ target: { value } }) => {
+    this.setState({
+      speedType: value,
+    });
+  };
+
   render() {
-    const { loading, error, data, degreeType } = this.state;
+    const { loading, error, data, degreeType, speedType } = this.state;
     return (
       <div className="container mt-5">
         <h1 className="display-1 jumbotron bg-light py-5 mb-b">5-Day Forecast</h1>
@@ -61,7 +64,13 @@ export class ForecastContainer extends React.Component {
         <div className="row justify-content-center">
           {!loading ? (
             data.map((item) => (
-              <DayCard key={item.dt} degreeType={degreeType} data={item} />
+              <DayCard
+                key={item.dt}
+                data={item}
+                degreeType={degreeType}
+                speedType={speedType}
+                speedOnChange={this.speedOnChange}
+              />
             ))
           ) : (
             <div>loading...</div>
